@@ -13,3 +13,5 @@
 
 ## Note
 Since I have a complicated network topology at home, sometime the egress address is a foreign country IP. My dynamic IP address is only in China, so I wrote a fixed `CN` condition inside the code. You can delete it or modify it to your own needs.
+
+Wow so wasm!

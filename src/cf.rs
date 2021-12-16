@@ -82,7 +82,7 @@ impl Client {
         let update_param = UpdateDnsRecordParams {
             name: &record.name,
             content: DnsContent::A { content: ip },
-            ttl: None,
+            ttl: Some(60),
             proxied: None,
         };
         let req = self
