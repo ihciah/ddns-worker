@@ -1,12 +1,13 @@
 name = "ddns"
 type = "javascript"
 workers_dev = true
-compatibility_date = "2021-11-05"
+compatibility_date = "2022-01-20"
 
 [vars]
 ZONE_ID = ""
 EMAIL = ""
 KEY = ""
+COUNTRY = "CN"
 "TOKEN_ddns.example.com" = "EXAMPLE_TOKEN"
 
 [build]

@@ -1,6 +1,9 @@
 use std::net::Ipv4Addr;
 
-use crate::cf_base::{Credentials, DnsContent, DnsRecord, ListDnsRecordsParams, SearchMatch, UpdateDnsRecordParams, ApiResult, ApiSuccess, ApiErrors};
+use crate::cf_base::{
+    ApiErrors, ApiResult, ApiSuccess, Credentials, DnsContent, DnsRecord, ListDnsRecordsParams,
+    SearchMatch, UpdateDnsRecordParams,
+};
 
 const CLOUDFLARE_API_URL: &str = "https://api.cloudflare.com/client/v4";
 
@@ -125,38 +128,22 @@ mod tests {
 
     #[tokio::test]
     async fn get_record() {
-        let cli = Client::new(
-            "ihciah@gmail.com".into(),
-            "".into(),
-        );
-        cli.get_any_a_record(
-            "".into(),
-            "test.ihc.im".into(),
-        )
-        .await
-        .unwrap();
+        let cli = Client::new("ihciah@gmail.com".into(), "".into());
+        cli.get_any_a_record("".into(), "test.ihc.im".into())
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
     async fn update_record() {
-        let cli = Client::new(
-            "ihciah@gmail.com".into(),
-            "".into(),
-        );
+        let cli = Client::new("ihciah@gmail.com".into(), "".into());
         let record = cli
-            .get_any_a_record(
-                "".into(),
-                "test.ihc.im".into(),
-            )
+            .get_any_a_record("".into(), "test.ihc.im".into())
             .await
             .unwrap()
             .unwrap();
-        cli.update_a_record(
-            "".into(),
-            record,
-            Ipv4Addr::new(127, 0, 0, 1),
-        )
-        .await
-        .unwrap();
+        cli.update_a_record("".into(), record, Ipv4Addr::new(127, 0, 0, 1))
+            .await
+            .unwrap();
     }
 }

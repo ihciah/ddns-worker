@@ -20,7 +20,10 @@ async fn set_record(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     };
 
     // Validate user domain and token
-    if user_domain.chars().any(|c| !c.is_ascii_alphanumeric() && c != '.') {
+    if user_domain
+        .chars()
+        .any(|c| !c.is_ascii_alphanumeric() && c != '.')
+    {
         return Response::error("Domain contains invalid characters", 400);
     }
     if user_domain.len() > MAX_DOMAIN_LEN {
@@ -28,10 +31,18 @@ async fn set_record(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     }
     let token = match ctx.var(&format!("TOKEN_{}", user_domain)) {
         Ok(val) => val.to_string(),
-        Err(_) => return Response::error(format!("Token not found or invalid for domain {}", user_domain), 403),
+        Err(_) => {
+            return Response::error(
+                format!("Token not found or invalid for domain {}", user_domain),
+                403,
+            )
+        }
     };
     if token != user_token {
-        return Response::error(format!("Token not found or invalid for domain {}", user_domain), 403);
+        return Response::error(
+            format!("Token not found or invalid for domain {}", user_domain),
+            403,
+        );
     }
 
     // Load vars
@@ -48,17 +59,23 @@ async fn set_record(req: Request, ctx: RouteContext<()>) -> Result<Response> {
         Err(_) => return Response::error("missing KEY", 500),
     };
 
-    // We only serve for CN
-    let country = req.cf().country().unwrap_or_else(|| "CN".into());
-    if country != "CN" {
-        return Response::error(
-            format!("Only available in China, your country is {}", country),
-            403,
-        );
+    // We only serve for given country
+    if let (Ok(country), Some(req_country)) = (ctx.var("COUNTRY"), req.cf().country()) {
+        let cty = country.to_string();
+        if !cty.is_empty() && cty != req_country {
+            return Response::error(
+                format!("Only available in {}, your country is {}", cty, req_country),
+                403,
+            );
+        }
     }
 
     // Get user ip
-    let user_ip = match req.headers().get("cf-connecting-ip").expect("internal error") {
+    let user_ip = match req
+        .headers()
+        .get("cf-connecting-ip")
+        .expect("internal error")
+    {
         Some(user_ip) => user_ip,
         None => return Response::error("Missing cf-connecting-ip", 500),
     };
@@ -70,7 +87,7 @@ async fn set_record(req: Request, ctx: RouteContext<()>) -> Result<Response> {
 }
 
 #[event(fetch)]
-pub async fn main(req: Request, env: Env) -> Result<Response> {
+pub async fn main(req: Request, env: Env, _ctx: worker::Context) -> Result<Response> {
     utils::log_request(&req);
     utils::set_panic_hook();
 
