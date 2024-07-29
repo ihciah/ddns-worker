@@ -27,8 +27,6 @@ pub enum DnsContent {
 pub struct DnsRecord {
     /// Extra Cloudflare-specific information about the record
     pub meta: Meta,
-    /// Whether this record can be modified/deleted (true means it's managed by Cloudflare)
-    pub locked: bool,
     /// DNS record name
     pub name: String,
     /// Time to live for DNS record. Value of 1 is 'automatic'

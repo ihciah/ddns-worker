@@ -62,10 +62,7 @@ impl Client {
         };
         let req = self
             .cli
-            .get(&format!(
-                "{}/zones/{}/dns_records",
-                CLOUDFLARE_API_URL, zone_id
-            ))
+            .get(format!("{CLOUDFLARE_API_URL}/zones/{zone_id}/dns_records"))
             .query(&list_param);
         let mut resp = self.do_request::<Vec<DnsRecord>>(req).await?;
         while let Some(record) = resp.result.pop() {
@@ -90,9 +87,9 @@ impl Client {
         };
         let req = self
             .cli
-            .put(&format!(
-                "{}/zones/{}/dns_records/{}",
-                CLOUDFLARE_API_URL, zone_id, record.id
+            .put(format!(
+                "{CLOUDFLARE_API_URL}/zones/{zone_id}/dns_records/{}",
+                record.id
             ))
             .json(&update_param);
         let resp = self.do_request::<DnsRecord>(req).await?;
