@@ -2,6 +2,7 @@
 #![allow(unused)]
 
 use std::{
+    borrow::Cow,
     collections::HashMap,
     net::{Ipv4Addr, Ipv6Addr},
 };
@@ -13,7 +14,20 @@ use serde_json::value::Value as JValue;
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(tag = "type")]
 #[allow(clippy::upper_case_acronyms)]
-pub enum DnsContent {
+pub enum DnsContent<'a> {
+    A { content: Ipv4Addr },
+    AAAA { content: Ipv6Addr },
+    CNAME { content: &'a str },
+    NS { content: &'a str },
+    MX { content: &'a str, priority: u16 },
+    TXT { content: &'a str },
+    SRV { content: &'a str },
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(tag = "type")]
+#[allow(clippy::upper_case_acronyms)]
+pub enum DnsContentOwned {
     A { content: Ipv4Addr },
     AAAA { content: Ipv6Addr },
     CNAME { content: String },
@@ -41,7 +55,7 @@ pub struct DnsRecord {
     pub proxiable: bool,
     /// Type of the DNS record that also holds the record value
     #[serde(flatten)]
-    pub content: DnsContent,
+    pub content: DnsContentOwned,
     /// DNS record identifier tag
     pub id: String,
     /// Whether the record is receiving the performance and security benefits of Cloudflare
@@ -93,10 +107,10 @@ pub enum SearchMatch {
 
 #[serde_with::skip_serializing_none]
 #[derive(Serialize, Clone, Debug, Default)]
-pub struct ListDnsRecordsParams {
+pub struct ListDnsRecordsParams<'a> {
     #[serde(flatten)]
-    pub record_type: Option<DnsContent>,
-    pub name: Option<String>,
+    pub record_type: Option<DnsContent<'a>>,
+    pub name: Option<&'a str>,
     pub page: Option<u32>,
     pub per_page: Option<u32>,
     pub order: Option<ListDnsRecordsOrder>,
@@ -116,7 +130,7 @@ pub struct UpdateDnsRecordParams<'a> {
     pub name: &'a str,
     /// Type of the DNS record that also holds the record value
     #[serde(flatten)]
-    pub content: DnsContent,
+    pub content: DnsContent<'a>,
 }
 
 #[derive(Clone, Debug)]
@@ -127,15 +141,21 @@ pub enum Credentials {
 }
 
 impl Credentials {
-    pub fn headers(&self) -> Vec<(&'static str, String)> {
+    pub fn headers(&self) -> Vec<(&'static str, Cow<'_, str>)> {
         match self {
             Self::UserAuthKey { email, key } => {
-                vec![("X-Auth-Email", email.clone()), ("X-Auth-Key", key.clone())]
+                vec![
+                    ("X-Auth-Email", Cow::Borrowed(email.as_str())),
+                    ("X-Auth-Key", Cow::Borrowed(key.as_str())),
+                ]
             }
             Self::UserAuthToken { token } => {
-                vec![("Authorization", format!("Bearer {}", token.clone()))]
+                vec![(
+                    "Authorization",
+                    Cow::Owned(format!("Bearer {}", token.as_str())),
+                )]
             }
-            Self::Service { key } => vec![("X-Auth-User-Service-Key", key.clone())],
+            Self::Service { key } => vec![("X-Auth-User-Service-Key", Cow::Borrowed(key.as_str()))],
         }
     }
 }

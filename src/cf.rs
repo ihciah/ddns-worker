@@ -1,8 +1,8 @@
 use std::net::Ipv4Addr;
 
 use crate::cf_base::{
-    ApiErrors, ApiResult, ApiSuccess, Credentials, DnsContent, DnsRecord, ListDnsRecordsParams,
-    SearchMatch, UpdateDnsRecordParams,
+    ApiErrors, ApiResult, ApiSuccess, Credentials, DnsContent, DnsContentOwned, DnsRecord,
+    ListDnsRecordsParams, SearchMatch, UpdateDnsRecordParams,
 };
 
 const CLOUDFLARE_API_URL: &str = "https://api.cloudflare.com/client/v4";
@@ -31,18 +31,13 @@ impl Client {
         }
     }
 
-    pub async fn update_dns(
-        &self,
-        zone_id: String,
-        domain: String,
-        ip: String,
-    ) -> anyhow::Result<()> {
+    pub async fn update_dns(&self, zone_id: &str, domain: &str, ip: &str) -> anyhow::Result<()> {
         let ipv4 = ip.parse::<Ipv4Addr>()?;
-        let record = match self.get_any_a_record(zone_id.clone(), domain).await? {
+        let record = match self.get_any_a_record(zone_id, domain).await? {
             Some(record) => record,
             None => return Err(anyhow::anyhow!("no record found")),
         };
-        if matches!(record.content, DnsContent::A { content: c } if c == ipv4) {
+        if matches!(record.content, DnsContentOwned::A { content: c } if c == ipv4) {
             // already exists
             return Ok(());
         }
@@ -52,11 +47,11 @@ impl Client {
 
     async fn get_any_a_record(
         &self,
-        zone_id: String,
-        domain: String,
+        zone_id: &str,
+        domain: &str,
     ) -> anyhow::Result<Option<DnsRecord>> {
         let list_param = ListDnsRecordsParams {
-            name: Some(domain.clone()),
+            name: Some(domain),
             search_match: Some(SearchMatch::Any),
             ..Default::default()
         };
@@ -66,7 +61,8 @@ impl Client {
             .query(&list_param);
         let mut resp = self.do_request::<Vec<DnsRecord>>(req).await?;
         while let Some(record) = resp.result.pop() {
-            if record.name == domain && matches!(record.content, DnsContent::A { content: _ }) {
+            if record.name == domain && matches!(record.content, DnsContentOwned::A { content: _ })
+            {
                 return Ok(Some(record));
             }
         }
@@ -75,7 +71,7 @@ impl Client {
 
     async fn update_a_record(
         &self,
-        zone_id: String,
+        zone_id: &str,
         record: DnsRecord,
         ip: Ipv4Addr,
     ) -> anyhow::Result<DnsRecord> {
@@ -101,7 +97,7 @@ impl Client {
         mut req: reqwest::RequestBuilder,
     ) -> anyhow::Result<ApiSuccess<ResultType>> {
         for (k, v) in self.credentials.headers() {
-            req = req.header(k, v);
+            req = req.header(k, v.as_ref());
         }
         let resp = self.cli.execute(req.build()?).await?;
 
@@ -126,20 +122,18 @@ mod tests {
     #[tokio::test]
     async fn get_record() {
         let cli = Client::new("ihciah@gmail.com".into(), "".into());
-        cli.get_any_a_record("".into(), "test.ihc.im".into())
-            .await
-            .unwrap();
+        cli.get_any_a_record("", "test.ihc.im").await.unwrap();
     }
 
     #[tokio::test]
     async fn update_record() {
         let cli = Client::new("ihciah@gmail.com".into(), "".into());
         let record = cli
-            .get_any_a_record("".into(), "test.ihc.im".into())
+            .get_any_a_record("", "test.ihc.im")
             .await
             .unwrap()
             .unwrap();
-        cli.update_a_record("".into(), record, Ipv4Addr::new(127, 0, 0, 1))
+        cli.update_a_record("", record, Ipv4Addr::new(127, 0, 0, 1))
             .await
             .unwrap();
     }

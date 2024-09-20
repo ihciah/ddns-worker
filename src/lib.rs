@@ -8,15 +8,13 @@ const MAX_DOMAIN_LEN: usize = 64;
 
 async fn set_record(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     // Get user token
-    let user_token = match ctx.param("token") {
-        Some(c) => c.to_string(),
-        None => return Response::error("No token found", 403),
+    let Some(user_token) = ctx.param("token") else {
+        return Response::error("No token found", 403);
     };
 
     // Get user domain
-    let user_domain = match ctx.param("domain") {
-        Some(c) => c.to_string(),
-        None => return Response::error("No domain found", 400),
+    let Some(user_domain) = ctx.param("domain") else {
+        return Response::error("No domain found", 400);
     };
 
     // Validate user domain and token
@@ -29,60 +27,61 @@ async fn set_record(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     if user_domain.len() > MAX_DOMAIN_LEN {
         return Response::error("Domain is too long", 400);
     }
-    let token = match ctx.var(&format!("TOKEN_{}", user_domain)) {
-        Ok(val) => val.to_string(),
-        Err(_) => {
-            return Response::error(
-                format!("Token not found or invalid for domain {}", user_domain),
-                403,
-            )
-        }
-    };
-    if token != user_token {
+    let Ok(token) = ctx.var(&format!("TOKEN_{user_domain}")) else {
         return Response::error(
-            format!("Token not found or invalid for domain {}", user_domain),
+            format!("Token not found or invalid for domain {user_domain}"),
+            403,
+        );
+    };
+    if !constant_time_eq::constant_time_eq(token.to_string().as_bytes(), user_token.as_bytes()) {
+        return Response::error(
+            format!("Token not found or invalid for domain {user_domain}"),
             403,
         );
     }
 
     // Load vars
-    let zone_id = match ctx.var("ZONE_ID") {
-        Ok(val) => val.to_string(),
-        Err(_) => return Response::error("missing ZONE_ID", 500),
+    let Ok(zone_id) = ctx.var("ZONE_ID") else {
+        return Response::error("missing ZONE_ID", 500);
     };
-    let email = match ctx.var("EMAIL") {
-        Ok(val) => val.to_string(),
-        Err(_) => return Response::error("missing EMAIL", 500),
+    let Ok(email) = ctx.var("EMAIL") else {
+        return Response::error("missing EMAIL", 500);
     };
-    let key = match ctx.var("KEY") {
-        Ok(val) => val.to_string(),
-        Err(_) => return Response::error("missing KEY", 500),
+    let Ok(key) = ctx.var("KEY") else {
+        return Response::error("missing KEY", 500);
     };
-
-    // We only serve for given country
-    if let (Ok(country), Some(req_country)) = (ctx.var("COUNTRY"), req.cf().country()) {
-        let cty = country.to_string();
-        if !cty.is_empty() && cty != req_country {
-            return Response::error(
-                format!("Only available in {}, your country is {}", cty, req_country),
-                403,
-            );
-        }
-    }
 
     // Get user ip
-    let user_ip = match req
-        .headers()
-        .get("cf-connecting-ip")
-        .expect("internal error")
-    {
-        Some(user_ip) => user_ip,
-        None => return Response::error("Missing cf-connecting-ip", 500),
+    let user_ip = if let Some(force_ip) = req.headers().get("force-ip").expect("internal error") {
+        force_ip
+    } else {
+        // We only serve for given country if use cf-connecting-ip
+        if let (Ok(country), Some(req_country)) = (ctx.var("COUNTRY"), req.cf().country()) {
+            let cty = country.to_string();
+            if !cty.is_empty() && cty != req_country {
+                return Response::error(
+                    format!("Only available in {cty}, your country is {req_country}"),
+                    403,
+                );
+            }
+        }
+        match req
+            .headers()
+            .get("cf-connecting-ip")
+            .expect("internal error")
+        {
+            Some(ip) => ip,
+            None => return Response::error("Missing cf-connecting-ip", 500),
+        }
     };
-    let client = cf::Client::new(email, key);
-    match client.update_dns(zone_id, user_domain, user_ip).await {
+
+    let client = cf::Client::new(email.to_string(), key.to_string());
+    match client
+        .update_dns(&zone_id.to_string(), user_domain, &user_ip)
+        .await
+    {
         Ok(_) => Response::ok("Update success"),
-        Err(e) => Response::error(format!("Update failed: {}", e), 500),
+        Err(e) => Response::error(format!("Update failed: {e}"), 500),
     }
 }
 
