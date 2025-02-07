@@ -56,7 +56,9 @@ async fn set_record(req: Request, ctx: RouteContext<()>) -> Result<Response> {
         force_ip
     } else {
         // We only serve for given country if use cf-connecting-ip
-        if let (Ok(country), Some(req_country)) = (ctx.var("COUNTRY"), req.cf().country()) {
+        if let (Ok(country), Some(req_country)) =
+            (ctx.var("COUNTRY"), req.cf().and_then(|f| f.country()))
+        {
             let cty = country.to_string();
             if !cty.is_empty() && cty != req_country {
                 return Response::error(

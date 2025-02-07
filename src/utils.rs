@@ -17,7 +17,9 @@ pub fn log_request(req: &Request) {
         "{} - [{}], located at: {:?}, within: {}",
         Date::now().to_string(),
         req.path(),
-        req.cf().coordinates().unwrap_or_default(),
-        req.cf().region().unwrap_or_else(|| "unknown region".into())
+        req.cf().and_then(|cf| cf.coordinates()).unwrap_or_default(),
+        req.cf()
+            .and_then(|cf| cf.region())
+            .unwrap_or_else(|| "unknown region".into())
     );
 }

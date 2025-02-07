@@ -46,7 +46,7 @@ pub struct DnsRecord {
     /// Time to live for DNS record. Value of 1 is 'automatic'
     pub ttl: u32,
     /// Zone identifier tag
-    pub zone_id: String,
+    pub zone_id: Option<String>,
     /// When the record was last modified
     pub modified_on: DateTime<Utc>,
     /// When the record was created
