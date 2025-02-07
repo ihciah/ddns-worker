@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT/Apache-2.0"
 name = "ddns"
 repository = "https://github.com/ihciah/ddns-worker"
-version = "0.1.0"
+version = "0.2.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -17,14 +17,14 @@ default = ["console_error_panic_hook"]
 anyhow = "1"
 cfg-if = "1"
 reqwest = { version = "0.11", default-features = false, features = ["json"] }
-worker = "0.0.18"
+worker = "0.5.0"
 constant_time_eq = "0.3.1"
 
 # For cf_base
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-serde_with = "1"
+serde_with = "3.12.0"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
