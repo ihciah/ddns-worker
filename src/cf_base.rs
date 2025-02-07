@@ -45,8 +45,6 @@ pub struct DnsRecord {
     pub name: String,
     /// Time to live for DNS record. Value of 1 is 'automatic'
     pub ttl: u32,
-    /// Zone identifier tag
-    pub zone_id: Option<String>,
     /// When the record was last modified
     pub modified_on: DateTime<Utc>,
     /// When the record was created
@@ -60,8 +58,6 @@ pub struct DnsRecord {
     pub id: String,
     /// Whether the record is receiving the performance and security benefits of Cloudflare
     pub proxied: bool,
-    /// The domain of the record
-    pub zone_name: String,
 }
 
 pub trait ApiResult: DeserializeOwned + std::fmt::Debug {}
