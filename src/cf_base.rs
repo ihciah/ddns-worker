@@ -39,8 +39,6 @@ pub enum DnsContentOwned {
 
 #[derive(Deserialize, Debug)]
 pub struct DnsRecord {
-    /// Extra Cloudflare-specific information about the record
-    pub meta: Meta,
     /// DNS record name
     pub name: String,
     /// Time to live for DNS record. Value of 1 is 'automatic'
@@ -64,13 +62,6 @@ pub trait ApiResult: DeserializeOwned + std::fmt::Debug {}
 
 impl ApiResult for DnsRecord {}
 impl ApiResult for Vec<DnsRecord> {}
-
-/// Extra Cloudflare-specific information about the record
-#[derive(Deserialize, Debug)]
-pub struct Meta {
-    /// Will exist if Cloudflare automatically added this DNS record during initial setup.
-    pub auto_added: bool,
-}
 
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
@@ -119,8 +110,10 @@ pub struct ListDnsRecordsParams<'a> {
 #[derive(Serialize, Clone, Debug)]
 pub struct UpdateDnsRecordParams<'a> {
     /// Time to live for DNS record. Value of 1 is 'automatic'
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ttl: Option<u32>,
     /// Whether the record is receiving the performance and security benefits of Cloudflare
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub proxied: Option<bool>,
     /// DNS record name
     pub name: &'a str,

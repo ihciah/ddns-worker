@@ -1,7 +1,5 @@
 use std::net::Ipv4Addr;
 
-use worker::console_log;
-
 use crate::cf_base::{
     ApiErrors, ApiResult, ApiSuccess, Credentials, DnsContent, DnsContentOwned, DnsRecord,
     ListDnsRecordsParams, SearchMatch, UpdateDnsRecordParams,
@@ -102,9 +100,7 @@ impl Client {
             req = req.header(k, v.as_ref());
         }
         let req = req.build()?;
-        console_log!("Request: {:?}", req);
         let resp = self.cli.execute(req).await?;
-        console_log!("Response: {:?}", resp);
 
         if resp.status().is_success() {
             let parsed: Result<ApiSuccess<ResultType>, reqwest::Error> = resp.json().await;
