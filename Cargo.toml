@@ -14,16 +14,17 @@ crate-type = ["cdylib", "rlib"]
 default = ["console_error_panic_hook"]
 
 [dependencies]
-anyhow = "1"
-cfg-if = "1"
+anyhow = "1.0.95"
+cfg-if = "1.0.0"
 reqwest = { version = "0.12.12", default-features = false, features = ["json"] }
 worker = "0.5.0"
 constant_time_eq = "0.3.1"
+cloudflare = "0.13.0"
 
 # For cf_base
-chrono = { version = "0.4", features = ["serde"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+chrono = { version = "0.4.39", features = ["serde"] }
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.138"
 serde_with = "3.12.0"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
@@ -33,7 +34,7 @@ serde_with = "3.12.0"
 console_error_panic_hook = { version = "0.1.1", optional = true }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["rt", "macros"] }
+tokio = { version = "1.43.0", features = ["rt", "macros"] }
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.

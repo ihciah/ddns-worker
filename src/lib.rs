@@ -1,7 +1,15 @@
+use std::net::Ipv4Addr;
+
+use cloudflare::{
+    endpoints::dns::{DnsContent, ListDnsRecordsParams},
+    framework::{async_api::Client, auth::Credentials, HttpApiClientConfig, SearchMatch},
+};
+use cloudflare::{
+    endpoints::dns::{ListDnsRecords, UpdateDnsRecord, UpdateDnsRecordParams},
+    framework::Environment,
+};
 use worker::*;
 
-mod cf;
-mod cf_base;
 mod utils;
 
 const MAX_DOMAIN_LEN: usize = 64;
@@ -77,14 +85,53 @@ async fn set_record(req: Request, ctx: RouteContext<()>) -> Result<Response> {
         }
     };
 
-    let client = cf::Client::new(email.to_string(), key.to_string());
-    match client
-        .update_dns(&zone_id.to_string(), user_domain, &user_ip)
-        .await
-    {
-        Ok(_) => Response::ok("Update success"),
-        Err(e) => Response::error(format!("Update failed: {e}"), 500),
+    let api_client = Client::new(
+        Credentials::UserAuthKey { email, key },
+        HttpApiClientConfig::default(),
+        Environment::Production,
+    )?;
+
+    let ipv4 = user_ip.parse::<Ipv4Addr>()?;
+    // list all dns records
+    let list_param: ListDnsRecordsParams = ListDnsRecordsParams {
+        name: Some(user_domain),
+        search_match: Some(SearchMatch::Any),
+        ..Default::default()
+    };
+    let records = api_client
+        .request(&ListDnsRecords {
+            zone_identifier: &zone_id,
+            params: list_param,
+        })
+        .await?;
+    let record = records
+        .result
+        .into_iter()
+        .find(|record| {
+            record.name == user_domain && matches!(record.content, DnsContent::A { content: _ })
+        })
+        .ok_or_else(|| anyhow::anyhow!("no record found"))?;
+
+    if matches!(record.content, DnsContent::A { content: c } if c == ipv4) {
+        // already exists
+        return Response::ok("Update success");
     }
+
+    let update_param = UpdateDnsRecordParams {
+        name: &record.name,
+        content: DnsContent::A { content: ipv4 },
+        ttl: Some(60),
+        proxied: None,
+    };
+    let _record = api_client
+        .request(&UpdateDnsRecord {
+            zone_identifier: &zone_id,
+            identifier: &record.id,
+            params: update_param,
+        })
+        .await?;
+
+    Response::ok("Update success")
 }
 
 #[event(fetch)]
