@@ -85,32 +85,44 @@ async fn set_record(req: Request, ctx: RouteContext<()>) -> Result<Response> {
         }
     };
 
-    let api_client = Client::new(
-        Credentials::UserAuthKey { email, key },
+    let api_client = match Client::new(
+        Credentials::UserAuthKey {
+            email: email.to_string(),
+            key: key.to_string(),
+        },
         HttpApiClientConfig::default(),
         Environment::Production,
-    )?;
+    ) {
+        Ok(client) => client,
+        Err(err) => return Response::error(format!("Error creating client: {:?}", err), 500),
+    };
 
-    let ipv4 = user_ip.parse::<Ipv4Addr>()?;
+    let ipv4 = match user_ip.parse::<Ipv4Addr>() {
+        Ok(ip) => ip,
+        Err(_) => return Response::error("Invalid IP address", 400),
+    };
     // list all dns records
     let list_param: ListDnsRecordsParams = ListDnsRecordsParams {
-        name: Some(user_domain),
+        name: Some(user_domain.to_string()),
         search_match: Some(SearchMatch::Any),
         ..Default::default()
     };
-    let records = api_client
+    let records = match api_client
         .request(&ListDnsRecords {
-            zone_identifier: &zone_id,
+            zone_identifier: &zone_id.to_string(),
             params: list_param,
         })
-        .await?;
-    let record = records
-        .result
-        .into_iter()
-        .find(|record| {
-            record.name == user_domain && matches!(record.content, DnsContent::A { content: _ })
-        })
-        .ok_or_else(|| anyhow::anyhow!("no record found"))?;
+        .await
+    {
+        Ok(records) => records,
+        Err(err) => return Response::error(format!("Error fetching records: {:?}", err), 500),
+    };
+    let record = match records.result.into_iter().find(|record| {
+        &record.name == user_domain && matches!(record.content, DnsContent::A { content: _ })
+    }) {
+        Some(record) => record,
+        None => return Response::error("Record not found", 404),
+    };
 
     if matches!(record.content, DnsContent::A { content: c } if c == ipv4) {
         // already exists
@@ -123,13 +135,17 @@ async fn set_record(req: Request, ctx: RouteContext<()>) -> Result<Response> {
         ttl: Some(60),
         proxied: None,
     };
-    let _record = api_client
+    let _record = match api_client
         .request(&UpdateDnsRecord {
-            zone_identifier: &zone_id,
+            zone_identifier: &zone_id.to_string(),
             identifier: &record.id,
             params: update_param,
         })
-        .await?;
+        .await
+    {
+        Ok(record) => record,
+        Err(err) => return Response::error(format!("Error updating record: {:?}", err), 500),
+    };
 
     Response::ok("Update success")
 }
